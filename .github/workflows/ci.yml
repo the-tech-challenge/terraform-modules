@@ -10,59 +10,110 @@ on:
     paths:
       - 'modules/**/*.tf'
 
-# Required permissions for OIDC authentication in reusable workflow
 permissions:
-  id-token: write
   contents: read
 
 jobs:
   # Job 1: Detect which modules have changed
   detect-changes:
+    name: Detect Changed Modules
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      has_changes: ${{ steps.set-matrix.outputs.has_changes }}
+      modules: ${{ steps.detect.outputs.modules }}
+      has-changes: ${{ steps.detect.outputs.has-changes }}
+    
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
-      
-      - name: Check for changes
-        uses: dorny/paths-filter@v3
-        id: changes
         with:
-          filters: |
-            compute: modules/compute/**
-            iam: modules/iam/**
-            vpc: modules/vpc/**
-            security-group: modules/security-group/**
+          fetch-depth: 0
 
-      - name: Set Matrix
-        id: set-matrix
+      - name: Detect Changed Modules
+        id: detect
         run: |
-          # Create a JSON array of changed modules
-          MODULES_JSON=$(echo '${{ toJSON(steps.changes.outputs.changes) }}')
-          echo "Detected changes in: $MODULES_JSON"
-          
-          echo "matrix=$MODULES_JSON" >> $GITHUB_OUTPUT
-          
-          if [ "$MODULES_JSON" == "[]" ]; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
+          # Determine base commit for comparison
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
           else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
+            BASE="HEAD~1"
+          fi
+          
+          # Get all changed files in modules/ directory
+          CHANGED_FILES=$(git diff --name-only $BASE HEAD | grep '^modules/' || true)
+          
+          # Exit early if no module files changed
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No module changes detected"
+            exit 0
+          fi
+          
+          # Extract module directories (structure: modules/module-name/)
+          MODULES=""
+          for file in $CHANGED_FILES; do
+            # Pattern: modules/[module-name]/ (e.g., modules/vpc/, modules/compute/)
+            if [[ $file =~ ^modules/([^/]+)/ ]]; then
+              MODULE_DIR="modules/${BASH_REMATCH[1]}"
+              
+              # Only include directories with .tf files
+              if ls $MODULE_DIR/*.tf 1> /dev/null 2>&1; then
+                MODULES="$MODULES$MODULE_DIR"$'\n'
+              fi
+            fi
+          done
+          
+          # Remove duplicates and empty lines
+          MODULES=$(echo "$MODULES" | sort -u | grep -v '^$' || true)
+          
+          if [ -z "$MODULES" ]; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No Terraform module changes detected"
+          else
+            # Convert to JSON array for matrix strategy
+            MODULES_JSON=$(echo "$MODULES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "modules=$MODULES_JSON" >> $GITHUB_OUTPUT
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Changed modules:"
+            echo "$MODULES"
           fi
 
   # Job 2: Run Quality Check for EACH changed module
   quality-check:
+    name: Quality Check
     needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    if: needs.detect-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        module: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+        module: ${{ fromJSON(needs.detect-changes.outputs.modules) }}
     
-    # Use the shared reusable workflow
-    uses: the-tech-challenge/github-actions-library/.github/workflows/terraform-quality.yml@main
-    with:
-      working_directory: modules/${{ matrix.module }}
-      terraform_version: '1.9.0'
-    secrets: inherit
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.0'
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: ${{ matrix.module }}
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: ${{ matrix.module }}
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ${{ matrix.module }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Run TFLint
+        run: |
+          tflint --init
+          tflint --format=compact
+        working-directory: ${{ matrix.module }}
