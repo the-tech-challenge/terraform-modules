@@ -58,6 +58,6 @@ jobs:
     # Use the shared reusable workflow
     uses: the-tech-challenge/github-actions-library/.github/workflows/terraform-quality.yml@main
     with:
-      working-directory: modules/${{ matrix.module }}
+      working_directory: modules/${{ matrix.module }}
       terraform_version: '1.9.0'
     secrets: inherit
