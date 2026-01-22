@@ -1,4 +1,4 @@
-# Compute Module - v1.0.0
+# Compute Module
 # Creates EC2 instance (security group managed separately via security-group module)
 
 #------------------------------------------------------------------------------

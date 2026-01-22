@@ -1,4 +1,4 @@
-# Security Group Module - v1.0.0
+# Security Group Module
 # Highly customizable security group for any AWS resource (EC2, ALB, RDS, etc.)
 
 #------------------------------------------------------------------------------

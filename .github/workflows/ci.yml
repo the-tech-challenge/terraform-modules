@@ -10,6 +10,11 @@ on:
     paths:
       - 'modules/**/*.tf'
 
+# Required permissions for OIDC authentication in reusable workflow
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   # Job 1: Detect which modules have changed
   detect-changes:
