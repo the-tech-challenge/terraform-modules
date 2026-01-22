@@ -1,0 +1,63 @@
+name: Smart Modules Quality Check
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'modules/**'
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'modules/**'
+
+jobs:
+  # Job 1: Detect which modules have changed
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_changes: ${{ steps.set-matrix.outputs.has_changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Check for changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            compute: modules/compute/**
+            iam: modules/iam/**
+            vpc: modules/vpc/**
+            security-group: modules/security-group/**
+
+      - name: Set Matrix
+        id: set-matrix
+        run: |
+          # Create a JSON array of changed modules
+          MODULES_JSON=$(echo '${{ toJSON(steps.changes.outputs.changes) }}')
+          echo "Detected changes in: $MODULES_JSON"
+          
+          echo "matrix=$MODULES_JSON" >> $GITHUB_OUTPUT
+          
+          if [ "$MODULES_JSON" == "[]" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+  # Job 2: Run Quality Check for EACH changed module
+  quality-check:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+    
+    # Use the shared reusable workflow
+    uses: the-tech-challenge/github-actions-library/.github/workflows/terraform-quality.yml@main
+    with:
+      working-directory: modules/${{ matrix.module }}
+      terraform_version: '1.9.0'
+    secrets: inherit
