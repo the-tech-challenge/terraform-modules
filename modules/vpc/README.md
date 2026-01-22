@@ -1,5 +1,7 @@
 # VPC Module
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+
 Provisions a production-ready VPC with public and optional private subnets across multiple availability zones.
 
 ## Features

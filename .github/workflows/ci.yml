@@ -4,11 +4,11 @@ on:
   push:
     branches: [ "main", "develop" ]
     paths:
-      - 'modules/**'
+      - 'modules/**/*.tf'
   pull_request:
     branches: [ "main", "develop" ]
     paths:
-      - 'modules/**'
+      - 'modules/**/*.tf'
 
 jobs:
   # Job 1: Detect which modules have changed

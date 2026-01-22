@@ -1,5 +1,7 @@
 # Security Group Module
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+
 Provisions a highly customizable AWS Security Group with flexible ingress and egress rules.
 
 ## Features

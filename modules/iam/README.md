@@ -1,5 +1,7 @@
 # IAM Module
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+
 Provisions IAM roles and instance profiles with minimal permissions following the principle of least privilege.
 
 ## Features

@@ -1,4 +1,4 @@
-# IAM Module
+# IAM Module - v1.0.0
 # Creates IAM role and instance profile for EC2 with minimal permissions
 
 #------------------------------------------------------------------------------

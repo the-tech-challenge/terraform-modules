@@ -1,4 +1,4 @@
-# VPC Module
+# VPC Module - v1.0.0
 # Creates VPC, public subnets (multi-AZ for ALB), IGW, route tables
 
 locals {

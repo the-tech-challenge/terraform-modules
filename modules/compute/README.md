@@ -1,5 +1,7 @@
 # Compute Module
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+
 Provisions a secure EC2 instance with enterprise-grade defaults including IMDSv2, encrypted EBS, and AL2023.
 
 ## Features
