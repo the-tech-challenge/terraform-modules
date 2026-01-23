@@ -16,10 +16,10 @@ terraform {
 
   # Backend - Static Configuration (Manual Setup)
   backend "s3" {
-    bucket         = "tech-challenge-tfstate-140352704144"
+    bucket         = "tech-challenge-tfstate-748607357990"
     key            = "flask-challenge/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "tech-challenge-tflock-140352704144"
+    dynamodb_table = "tech-challenge-tflock-748607357990"
     encrypt        = true
   }
 }
