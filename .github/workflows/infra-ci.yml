@@ -1,0 +1,59 @@
+# Infrastructure CI/CD - Zero Touch Automation
+# Automatically creates backend state if missing, then deploys infra
+
+name: Infrastructure CI/CD
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'infra/**' 
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: '1.9.0'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  # Quality Check (Shared Workflow)
+  quality:
+    name: Terraform Quality
+    uses: the-tech-challenge/github-actions-library/.github/workflows/terraform-quality.yml@main
+    with:
+      working_directory: 'infra'
+      terraform_version: '1.9.0'
+
+  # Plan Infrastructure
+  plan:
+    name: Plan
+    needs: quality
+    uses: the-tech-challenge/github-actions-library/.github/workflows/terraform-plan.yml@main
+    with:
+      working_directory: 'infra'
+      terraform_version: '1.9.0'
+    secrets:
+      ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_ARN }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+  # Apply Infrastructure
+  apply:
+    name: Apply
+    needs: plan
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    uses: the-tech-challenge/github-actions-library/.github/workflows/terraform-apply.yml@main
+    with:
+      working_directory: 'infra'
+      terraform_version: '1.9.0'
+      auto_approve: true
+      environment: production
+      args: '-var-file=environments/prod.tfvars'
+    secrets:
+      ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_ARN }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
